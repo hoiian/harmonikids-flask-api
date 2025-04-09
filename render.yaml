@@ -3,5 +3,6 @@ services:
     name: harmonikids-flask-api
     env: python
     buildCommand: ""
-    startCommand: python3 music.py
+    # startCommand: python3 music.py
+    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT music:app
     autoDeploy: true

@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: harmonikids-flask-api
+    env: python
+    buildCommand: ""
+    startCommand: gunicorn music:app
+    autoDeploy: true

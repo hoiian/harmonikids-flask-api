@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>音符辨識系統</title>
+    <style>
+      #video {
+        width: 400px;
+        height: 300px;
+        background: #000;
+      }
+      button {
+        margin: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>音符辨識系統</h1>
+
+    <!-- 相機畫面 -->
+    <video id="video" autoplay playsinline></video>
+    <br />
+
+    <!-- 按鈕區塊 -->
+    <button id="captureBtn">辨識</button>
+    <button id="recordBtn">紀錄</button>
+    <button id="playBtn">播放</button>
+    <button id="pauseBtn">暫停</button>
+    <button id="resumeBtn">繼續</button>
+    <button id="resetBtn">重置</button>
+
+    <script>
+      // 取得 video
+      let video = document.getElementById("video");
+
+      // 取得攝影機串流
+      navigator.mediaDevices
+        .getUserMedia({ video: true, audio: false })
+        .then((stream) => {
+          video.srcObject = stream;
+        })
+        .catch((err) => {
+          console.error("Error accessing camera: ", err);
+        });
+
+      // 存放「最近一次」辨識結果
+      let capturedNotes = [];
+
+      // 存放「已紀錄」的所有音符（可多次辨識後累積）
+      let recordedNotes = [];
+
+      // 前端對應字典 (同後端 note_to_sound)，需與 /static/sounds/ 下音檔對應
+      let mapping = {
+        "quarter_note|C3": "quarter_note_C3_Do.wav",
+        "quarter_note|D3": "quarter_note_C3_Re.wav",
+        "quarter_note|E3": "quarter_note_C3_Mi.wav",
+        "quarter_note|F3": "quarter_note_C3_Fa.wav",
+        "quarter_note|G3": "quarter_note_C3_Sol.wav",
+        "quarter_note|A3": "quarter_note_C3_La.wav",
+        "quarter_note|B3": "quarter_note_C3_Si.wav",
+        "quarter_note|C4": "1_C4.wav",
+        "quarter_note|D4": "1_D4.wav",
+        "quarter_note|E4": "1_E4.wav",
+        "quarter_note|F4": "1_F4.wav",
+        "quarter_note|G4": "1_G4.wav",
+        "quarter_note|A4": "1_A4.wav",
+        "quarter_note|B4": "1_B4.wav",
+
+        "half_note|C3": "half_note_C3_Do.wav",
+        "half_note|D3": "half_note_C3_Re.wav",
+        "half_note|E3": "half_note_C3_Mi.wav",
+        "half_note|F3": "half_note_C3_Fa.wav",
+        "half_note|G3": "half_note_C3_Sol.wav",
+        "half_note|A3": "half_note_C3_La.wav",
+        "half_note|B3": "half_note_C3_Si.wav",
+        "half_note|C4": "2_C4.wav",
+        "half_note|D4": "2_D4.wav",
+        "half_note|E4": "2_E4.wav",
+        "half_note|F4": "2_F4.wav",
+        "half_note|G4": "2_G4.wav",
+        "half_note|A4": "2_A4.wav",
+        "half_note|B4": "2_B4.wav",
+
+        "whole_note|C3": "whole_note_C3_Do.wav",
+        "whole_note|D3": "whole_note_C3_Re.wav",
+        "whole_note|E3": "whole_note_C3_Mi.wav",
+        "whole_note|F3": "whole_note_C3_Fa.wav",
+        "whole_note|G3": "whole_note_C3_Sol.wav",
+        "whole_note|A3": "whole_note_C3_La.wav",
+        "whole_note|B3": "whole_note_C3_Si.wav",
+        "whole_note|C4": "4_C4.wav",
+        "whole_note|D4": "4_D4.wav",
+        "whole_note|E4": "4_E4.wav",
+        "whole_note|F4": "4_F4.wav",
+        "whole_note|G4": "4_G4.wav",
+        "whole_note|A4": "4_A4.wav",
+        "whole_note|B4": "4_B4.wav",
+      };
+
+      // 根據 (音符類型, 音高) 組合，找對應音檔路徑
+      function getSoundFile(noteType, pitch) {
+        let key = noteType + "|" + pitch;
+        return mapping[key] ? mapping[key] : null;
+      }
+
+      // 用於播放音檔的一些變數
+      let audioIndex = 0;
+      let audioList = [];
+      let audioElement = new Audio();
+
+      // 音檔播放結束後，播放下一個
+      audioElement.addEventListener("ended", function () {
+        audioIndex++;
+        if (audioIndex < audioList.length) {
+          audioElement.src = audioList[audioIndex];
+          audioElement.play();
+        }
+      });
+
+      // ----- 辨識按鈕：擷取影像 & 呼叫 /capture -----
+      document
+        .getElementById("captureBtn")
+        .addEventListener("click", function () {
+          let canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          let ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0);
+          let dataURL = canvas.toDataURL("image/jpeg");
+
+          fetch("/api/capture", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "image=" + encodeURIComponent(dataURL),
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.status === "ok") {
+                capturedNotes = data.notes;
+                alert("辨識完成！共 " + capturedNotes.length + " 個音符");
+              }
+            })
+            .catch((err) => console.error(err));
+        });
+
+      // ----- 紀錄按鈕：將本次辨識到的音符，加入到 recordedNotes -----
+      document
+        .getElementById("recordBtn")
+        .addEventListener("click", function () {
+          if (capturedNotes.length === 0) {
+            alert("尚未有可紀錄的音符，請先進行辨識！");
+            return;
+          }
+          // 將目前 capturedNotes 內容加到 recordedNotes
+          recordedNotes = recordedNotes.concat(capturedNotes);
+          alert(
+            "已紀錄 " +
+              capturedNotes.length +
+              " 個音符，目前總共有 " +
+              recordedNotes.length +
+              " 個音符"
+          );
+        });
+
+      // ----- 播放按鈕：播放 recordedNotes 裡所有音符 -----
+      document.getElementById("playBtn").addEventListener("click", function () {
+        if (recordedNotes.length === 0) {
+          alert("尚未紀錄任何音符！");
+          return;
+        }
+        // 建立 audioList
+        audioList = [];
+        for (let i = 0; i < recordedNotes.length; i++) {
+          let [noteType, pitch] = recordedNotes[i];
+          let soundFile = getSoundFile(noteType, pitch);
+          if (soundFile) {
+            audioList.push("/static/sounds/" + soundFile);
+          }
+        }
+        // 開始播放
+        if (audioList.length > 0) {
+          audioIndex = 0;
+          audioElement.src = audioList[audioIndex];
+          audioElement.play();
+        } else {
+          alert("沒有對應的音檔可以播放。");
+        }
+      });
+
+      // ----- 暫停按鈕 -----
+      document
+        .getElementById("pauseBtn")
+        .addEventListener("click", function () {
+          audioElement.pause();
+        });
+
+      // ----- 繼續按鈕 -----
+      document
+        .getElementById("resumeBtn")
+        .addEventListener("click", function () {
+          // 只有在 audioIndex 還在範圍內時才播放
+          if (audioIndex < audioList.length) {
+            audioElement.play();
+          }
+        });
+
+      // ----- 重置按鈕：清空 recordedNotes 方便重新開始 -----
+      document
+        .getElementById("resetBtn")
+        .addEventListener("click", function () {
+          recordedNotes = [];
+          audioList = [];
+          audioElement.pause();
+          audioElement.currentTime = 0;
+          audioIndex = 0;
+          alert("所有紀錄的音符已重置！");
+        });
+    </script>
+  </body>
+</html>

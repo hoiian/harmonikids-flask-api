@@ -239,4 +239,4 @@ def reset():
     # print("App is ready.")
 
     # 將 app 變數留給 gunicorn 用
-app = Flask(__name__)
+

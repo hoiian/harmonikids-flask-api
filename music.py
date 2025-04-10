@@ -232,8 +232,11 @@ def reset():
     last_recognized_notes = []  # 清空紀錄的音符
     return jsonify({"status": "ok", "message": "已重置所有音符"})
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
     # app.run(debug=True)
     # app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
         # 不要加 run，Render 會自動用 gunicorn 執行
-    print("App is ready.")
+    # print("App is ready.")
+
+    # 將 app 變數留給 gunicorn 用
+app = Flask(__name__)

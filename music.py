@@ -70,6 +70,8 @@ def recognize_notes(img_path):
         model = YOLO('best.pt')  # 僅第一次使用時才載入模型
 
     img = cv2.imread(img_path)
+    img = cv2.resize(img, (640, 480))  # 減少圖片尺寸
+
     height, width = img.shape[:2]
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
@@ -129,7 +131,7 @@ def recognize_notes(img_path):
         steps = round(diff / half_spacing)
         return note_map[steps] if 0 <= steps < len(note_map) else "Unknown"
 
-    results = model.predict(source=img_path, conf=0.5)
+    results = model.predict(source=img_path, conf=0.3)
     recognized_notes = []
     for result in results:
         for box in result.boxes:

@@ -67,7 +67,7 @@ def recognize_notes(img_path):
     global model
     if model is None:
         from ultralytics import YOLO
-        model = YOLO('best.pt')  # 僅第一次使用時才載入模型
+        model = YOLO("yolov8n.pt")  # 僅第一次使用時才載入模型
 
     img = cv2.imread(img_path)
     img = cv2.resize(img, (340, 240))  # 減少圖片尺寸

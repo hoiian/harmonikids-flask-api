@@ -70,7 +70,7 @@ def recognize_notes(img_path):
         model = YOLO('best.pt')  # 僅第一次使用時才載入模型
 
     img = cv2.imread(img_path)
-    img = cv2.resize(img, (640, 480))  # 減少圖片尺寸
+    img = cv2.resize(img, (340, 240))  # 減少圖片尺寸
 
     height, width = img.shape[:2]
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
